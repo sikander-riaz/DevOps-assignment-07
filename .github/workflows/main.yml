@@ -4,21 +4,43 @@ on:
   push:
     branches:
       - dev
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Terraform action to run"
+        type: choice
+        required: true
+        default: plan
+        options:
+          - plan
+          - apply
+          - destroy
+      confirm_destroy:
+        description: "Type 'yes' to confirm destroy (required only for destroy action)"
+        type: string
+        required: false
+        default: "no"
 
 jobs:
   terraform:
+    name: "Terraform ${{ inputs.action || 'Run' }}"
     runs-on: ubuntu-latest
+    # This creates a global default: all steps run inside the 'terraform' folder
+    defaults:
+      run:
+        working-directory: terraform
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
+        uses: hashicorp/setup-terraform@v3 # Updated to v3
         with:
-          terraform_version: 1.13.5
+          terraform_version: "latest" # Or specify your specific version
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v3
+        uses: aws-actions/configure-aws-credentials@v4 # Updated to v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -27,9 +49,36 @@ jobs:
       - name: Terraform Init
         run: terraform init
 
-      - name: Terraform Plan
+      # --- PLAN LOGIC ---
+
+      # Runs on push OR if manual action is plan/apply
+      - name: Terraform Plan (Create/Update)
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.action != 'destroy')
         run: terraform plan -input=false
 
-      - name: Terraform Apply (on dev branch push)
-        if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
+      # Runs only if manual action is destroy
+      - name: Terraform Plan (Destroy)
+        if: github.event_name == 'workflow_dispatch' && inputs.action == 'destroy'
+        run: terraform plan -destroy -input=false
+
+      # --- APPLY LOGIC ---
+
+      # Runs on dev push OR manual apply
+      - name: Terraform Apply
+        if: (github.ref == 'refs/heads/dev' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
         run: terraform apply -auto-approve -input=false
+
+      # --- DESTROY LOGIC ---
+
+      # Runs only if action is destroy AND user typed "yes"
+      - name: Terraform Destroy
+        if: github.event_name == 'workflow_dispatch' && inputs.action == 'destroy'
+        run: |
+          if [ "${{ inputs.confirm_destroy }}" == "yes" ]; then
+            echo "Confirmation received. Destroying infrastructure..."
+            terraform destroy -auto-approve -input=false
+          else
+            echo "Error: You selected Destroy but did not type 'yes' in the confirmation box."
+            echo "Input received: ${{ inputs.confirm_destroy }}"
+            exit 1
+          fi
