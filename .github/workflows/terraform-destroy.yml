@@ -1,10 +1,10 @@
-name: Destroy AWS Infrastructure
+name: Terraform Destroy
 
 on:
   workflow_dispatch:
     inputs:
       confirm_destroy:
-        description: "Type 'YES' to confirm destruction of AWS resources in west 2"
+        description: "Type 'YES' to confirm destruction of AWS resources in us-west-2"
         required: true
         default: "NO"
 
@@ -47,4 +47,4 @@ jobs:
 
       - name: Summary
         if: success()
-        run: echo "### Terraform destroy completed successfully!" >> $GITHUB_STEP_SUMMARY
+        run: echo "### ✅ Terraform destroy completed successfully!" >> $GITHUB_STEP_SUMMARY
