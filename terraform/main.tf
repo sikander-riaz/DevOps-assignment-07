@@ -136,6 +136,9 @@ resource "local_file" "ansible_inventory" {
   EOT
 }
 
-resource "aws_s3_bucket" "testBucket-2" {
-bucket=var.s3-bucket-name
+resource "aws_s3_bucket" "testBucket_2" {
+  bucket = "test-bucket-2026-${random_id.suffix.hex}"
+}
+resource "random_id" "suffix" {
+  byte_length = 4
 }
