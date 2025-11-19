@@ -136,6 +136,6 @@ resource "local_file" "ansible_inventory" {
   EOT
 }
 
-resource "aws_s3_bucket" "testBucket" {
+resource "aws_s3_bucket" "testBucket-2" {
 bucket=var.s3-bucket-name
 }
