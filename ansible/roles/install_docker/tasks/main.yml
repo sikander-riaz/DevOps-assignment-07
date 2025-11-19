@@ -1,0 +1,71 @@
+- name: Ensure the system is updated
+  apt:
+    update_cache: true
+    force_apt_get: true
+    cache_valid_time: 3600
+
+- name: Install required packages for Docker repo
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+    state: present
+
+- name: Ensure /etc/apt/keyrings exists
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Add Docker GPG key
+  become: true
+  get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Add Docker APT repository
+  apt_repository:
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable"
+    state: present
+    filename: docker
+
+- name: Update apt cache after adding Docker repo
+  apt:
+    update_cache: true
+
+- name: Install Docker packages
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+
+- name: Install Python dependencies for Docker SDK
+  apt:
+    name:
+      - python3-pip
+      - python3-setuptools
+    state: present
+
+- name: Install Docker SDK for Python and compatible requests library
+  pip:
+    name:
+      - "docker>=7.1.0"
+      - "requests<2.32.0"
+    executable: pip3
+    extra_args: "--break-system-packages --ignore-installed"
+
+- name: Enable and start Docker service
+  service:
+    name: docker
+    state: started
+    enabled: true

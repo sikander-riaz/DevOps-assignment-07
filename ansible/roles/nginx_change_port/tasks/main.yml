@@ -1,0 +1,17 @@
+- name: Stop nginx container if present
+  community.docker.docker_container:
+    name: my-nginx
+    state: absent
+    force_kill: true
+  ignore_errors: true
+
+- name: Run nginx container on port 81
+  community.docker.docker_container:
+    name: my-nginx
+    image: nginx:latest
+    state: started
+    restart_policy: unless-stopped
+    published_ports:
+      - "81:80"
+    volumes:
+      - /srv/nginx/index.html:/usr/share/nginx/html/index.html:ro
