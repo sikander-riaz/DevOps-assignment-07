@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm_destroy:
-        description: "Type 'YES' to confirm destruction of AWS resources"
+        description: "Type 'YES' to confirm destruction of AWS resources in west 2"
         required: true
         default: "NO"
 
