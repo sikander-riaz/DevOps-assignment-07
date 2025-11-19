@@ -33,7 +33,7 @@ resource "aws_route_table_association" "public" {
 resource "aws_subnet" "subnet" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.0.1.0/24"
-  availability_zone       = "us-west-2a"
+  availability_zone       = "us-west-2b"
   map_public_ip_on_launch = true
   tags = {
     Name = "Public Subnet"
@@ -134,4 +134,8 @@ resource "local_file" "ansible_inventory" {
     [all:vars]
     ansible_python_interpreter=/usr/bin/python3
   EOT
+}
+
+resource "aws_s3_bucket" "testBucket" {
+bucket=var.s3-bucket-name
 }
