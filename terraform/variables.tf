@@ -1,7 +1,7 @@
 variable "ami" {
   description = "Amazon machine image to use for ec2 instance"
   type        = string
-  default     = "ami-03c62074af4c8c1bc" # Ubuntu 24.04 LTS // 
+  default     = "ami-0a208b2fa6dfc6a92" # Ubuntu 24.04 LTS // 
 
 }
 
