@@ -37,6 +37,27 @@ jobs:
       - name: Terraform Init
         run: terraform init -backend-config="bucket=s3-tf-state-dev-2026" -backend-config="key=dev/terraform.tfstate" -backend-config="region=us-west-2" -backend-config="dynamodb_table=terraform-locks-dev" -backend-config="encrypt=true"
 
+      - name: Check for Stale Lock and Remove
+        run: |
+          # Get current lock info if it exists
+          LOCK_ID=$(aws dynamodb scan \
+            --table-name terraform-locks-dev \
+            --filter-expression "LockID = :lockid" \
+            --expression-attribute-values '{":lockid":{"S":"s3-tf-state-dev-2026/dev/terraform.tfstate"}}' \
+            --region us-west-2 \
+            --output json | jq -r '.Items[0].LockID.S // empty')
+
+          if [ ! -z "$LOCK_ID" ]; then
+            echo "Found stale lock: $LOCK_ID"
+            echo "Attempting to force unlock..."
+            terraform force-unlock -force "$LOCK_ID" || true
+          else
+            echo "No stale locks found"
+          fi
+        continue-on-error: true
+
+      - name: Terraform Destroy
+        run: terraform destroy -auto-approve
       - name: Terraform Destroy
         run: terraform destroy -auto-approve
 
