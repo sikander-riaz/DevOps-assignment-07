@@ -4,74 +4,78 @@ on:
   push:
     branches:
       - dev
-  workflow_dispatch:
-    inputs:
-      action:
-        description: "Action to perform"
-        type: choice
-        required: true
-        default: plan
-        options:
-          - plan
-          - apply
-          - destroy
-      confirm_destroy:
-        description: "Type 'yes' to confirm destroy (REQUIRED for destroy)"
-        type: string
-        required: false
-        default: "no"
 
 jobs:
-  terraform:
-    name: "Terraform ${{ inputs.action || 'Auto-Apply' }}"
+  deploy:
     runs-on: ubuntu-latest
-
-    # GLOBAL SETTING: All steps run inside the 'terraform' folder
+    # Set working directory for all run steps
     defaults:
       run:
-        working-directory: terraform
+        working-directory: ./terraform
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure AWS Credentials
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-west-2
 
-      - name: Setup Terraform
+      - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
 
-      # You MUST have a remote backend (S3) configured in your .tf files
-      # or 'destroy later' will fail because the state file is lost.
+      - name: List directory contents
+        run: ls -la
+
       - name: Terraform Init
         run: terraform init
 
-      # --- PLAN & APPLY LOGIC ---
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Validate
+        run: terraform validate
 
       - name: Terraform Plan
-        # Run on Push, OR if manual action is Plan or Apply
-        if: github.event_name == 'push' || inputs.action == 'plan' || inputs.action == 'apply'
-        run: terraform plan -input=false
+        id: plan
+        run: |
+          terraform plan -no-color -out=tfplan
+          echo "plan_exitcode=$?" >> $GITHUB_OUTPUT
+
+      - name: Upload Terraform Plan
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: ./terraform/tfplan
+          retention-days: 1
 
       - name: Terraform Apply
-        # Run on Dev Push, OR if manual action is Apply
-        if: (github.event_name == 'push' && github.ref == 'refs/heads/dev') || inputs.action == 'apply'
-        run: terraform apply -auto-approve -input=false
-
-      # --- DESTROY LOGIC ---
-
-      - name: Terraform Destroy
-        # Only runs if action is 'destroy'
-        if: inputs.action == 'destroy'
+        if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
+        run: terraform apply -auto-approve tfplan
+      - name: Save Terraform Outputs
+        if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
         run: |
-          if [ "${{ inputs.confirm_destroy }}" == "yes" ]; then
-            echo "Confirmation received. Destroying infrastructure..."
-            terraform destroy -auto-approve -input=false
-          else
-            echo "SAFETY ERROR: You selected 'destroy' but did not type 'yes' in the confirmation box."
-            exit 1
-          fi
+          echo "##  Infrastructure Deployed Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Terraform Outputs" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          terraform output >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          # Save outputs as JSON
+          terraform output -json > terraform-outputs.json
+
+      - name: Upload Terraform Outputs
+        if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-outputs
+          path: ./terraform/terraform-outputs.json
+          retention-days: 30
