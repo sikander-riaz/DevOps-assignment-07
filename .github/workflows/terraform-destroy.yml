@@ -1,10 +1,12 @@
+---
 name: Terraform Destroy
 
 on:
   workflow_dispatch:
     inputs:
       confirm_destroy:
-        description: "Type 'YES' to confirm destruction of AWS resources in us-west-2"
+        description: >-
+          Type 'YES' to confirm destruction of AWS resources in us-west-2
         required: true
         default: "NO"
 
@@ -35,16 +37,18 @@ jobs:
           terraform_version: 1.6.0
 
       - name: Terraform Init
-        run: terraform init \
-          -backend-config="bucket=s3-tf-state-dev-2026" \
-          -backend-config="key=dev/terraform.tfstate" \
-          -backend-config="region=us-west-2" \
-          -backend-config="dynamodb_table=terraform-locks-dev" \
-          -backend-config="encrypt=true"
+        run: |
+          terraform init \
+            -backend-config="bucket=s3-tf-state-dev-2026" \
+            -backend-config="key=dev/terraform.tfstate" \
+            -backend-config="region=us-west-2" \
+            -backend-config="dynamodb_table=terraform-locks-dev" \
+            -backend-config="encrypt=true"
 
       - name: Terraform Destroy
         run: terraform destroy -auto-approve
 
       - name: Summary
         if: success()
-        run: echo "### ✅ Terraform destroy completed successfully!" >> $GITHUB_STEP_SUMMARY
+        run: |
+          echo "###  Terraform destroy completed successfully!" >> $GITHUB_STEP_SUMMARY
