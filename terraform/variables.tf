@@ -1,7 +1,7 @@
 variable "ami" {
   description = "Amazon machine image to use for ec2 instance"
   type        = string
-  default     = "ami-00f46ccd1cbfb363e" # Ubuntu 24.04 LTS // us-east-1
+  default     = "ami-03c62074af4c8c1bc" # Ubuntu 24.04 LTS // 
 
 }
 
@@ -19,4 +19,10 @@ variable "instance_name" {
 variable "aws_region" {
   type    = string
   default = "us-west-2"
+}
+
+variable "s3-bucket-name" {
+  description ="name of s3 bucket"
+  type = string
+  default = "test_bucket_2026"
 }
